@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, extractText, parseJSON } from "@/lib/anthropic";
+import { createServerClient } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,7 +98,27 @@ Return only valid JSON, no additional text.`;
     });
 
     const text = extractText(message.content);
-    const blueprint = parseJSON(text);
+    const blueprint = parseJSON<{
+      positioningStatement: string;
+      idealClientAvatar: object;
+      voiceGuide: object;
+      contentPillars: object[];
+    }>(text);
+
+    // Persist to Supabase if a user_id is provided (post-auth)
+    const { user_id, input_type } = body as { user_id?: string; input_type?: string };
+    if (user_id && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const db = createServerClient();
+      await db.from("brand_blueprints").insert({
+        user_id,
+        positioning_statement: blueprint.positioningStatement,
+        ica: blueprint.idealClientAvatar,
+        voice_guide: blueprint.voiceGuide,
+        content_pillars: blueprint.contentPillars,
+        input_type: input_type ?? (niche ? "niche" : "ikigai"),
+        input_data: niche ? { niche } : { passion, skills, mission, vocation },
+      });
+    }
 
     return NextResponse.json({ blueprint });
   } catch (error) {

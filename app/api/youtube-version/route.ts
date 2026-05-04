@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, extractText, parseJSON } from "@/lib/anthropic";
+import { createServerClient } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, hookType, pattern } = body;
+    const { title, hookType, pattern, user_id } = body as {
+      title: string;
+      hookType?: string;
+      pattern?: string;
+      user_id?: string;
+    };
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -54,7 +60,30 @@ Return only valid JSON.`;
     });
 
     const text = extractText(message.content);
-    const plan = parseJSON(text);
+    const plan = parseJSON<{
+      remixedTitle: string;
+      altTitles: string[];
+      hook: Record<string, string>;
+      scriptOutline: object[];
+      cta: string;
+      thumbnailBrief: object;
+    }>(text);
+
+    if (user_id && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const db = createServerClient();
+      await db.from("youtube_versions").insert({
+        user_id,
+        original_title: title,
+        hook_type: hookType ?? null,
+        pattern: pattern ?? null,
+        remixed_title: plan.remixedTitle,
+        alt_titles: plan.altTitles,
+        hook_lines: plan.hook,
+        script_outline: plan.scriptOutline,
+        cta: plan.cta,
+        thumbnail_brief: plan.thumbnailBrief,
+      });
+    }
 
     return NextResponse.json({ plan });
   } catch (error) {

@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, extractText, parseJSON } from "@/lib/anthropic";
+import { createServerClient } from "@/lib/supabase-server";
+
+interface PostEntry {
+  type: string;
+  hook: string;
+  body: string;
+  cta: string;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { topic } = body;
+    const { topic, user_id, blueprint_id } = body as {
+      topic: string;
+      user_id?: string;
+      blueprint_id?: string;
+    };
 
     if (!topic) {
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
@@ -65,7 +77,23 @@ Make each post feel authentic, not corporate. Use short sentences. No buzzwords.
     });
 
     const text = extractText(message.content);
-    const data = parseJSON<{ posts: unknown[] }>(text);
+    const data = parseJSON<{ posts: PostEntry[] }>(text);
+
+    if (user_id && process.env.SUPABASE_SERVICE_ROLE_KEY && data.posts?.length) {
+      const db = createServerClient();
+      await db.from("generated_posts").insert(
+        data.posts.map((p) => ({
+          user_id,
+          blueprint_id: blueprint_id ?? null,
+          platform: "linkedin",
+          post_type: p.type,
+          topic,
+          hook: p.hook,
+          body: p.body,
+          cta: p.cta,
+        }))
+      );
+    }
 
     return NextResponse.json(data);
   } catch (error) {
