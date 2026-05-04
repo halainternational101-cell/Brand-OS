@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -406,8 +408,10 @@ function Landing({ onStart }: { onStart: () => void }) {
 
 function Onboarding({
   onComplete,
+  userId,
 }: {
   onComplete: (blueprint: Blueprint) => void;
+  userId: string | null;
 }) {
   const [path, setPath] = useState<OnboardingPath>(null);
   const [step, setStep] = useState(0);
@@ -460,7 +464,8 @@ function Onboarding({
     setLoading(true);
     setError("");
     try {
-      const payload = path === "niche" ? { niche } : ikigai;
+      const base = path === "niche" ? { niche } : ikigai;
+      const payload = userId ? { ...base, user_id: userId } : base;
       const res = await fetch("/api/brand", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -868,7 +873,7 @@ function BrandBlueprint({
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ blueprint }: { blueprint: Blueprint }) {
+function Dashboard({ blueprint, userId }: { blueprint: Blueprint; userId: string | null }) {
   const [tab, setTab] = useState<DashboardTab>("youtube");
   const [selectedOutlier, setSelectedOutlier] = useState<YouTubeOutlier | null>(null);
   const [youtubePlan, setYoutubePlan] = useState<YouTubePlan | null>(null);
@@ -890,6 +895,7 @@ function Dashboard({ blueprint }: { blueprint: Blueprint }) {
           title: outlier.title,
           hookType: outlier.hookType,
           pattern: outlier.pattern,
+          ...(userId ? { user_id: userId } : {}),
         }),
       });
       const data = await res.json();
@@ -909,7 +915,10 @@ function Dashboard({ blueprint }: { blueprint: Blueprint }) {
       const res = await fetch("/api/linkedin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: linkedinTopic }),
+        body: JSON.stringify({
+          topic: linkedinTopic,
+          ...(userId ? { user_id: userId } : {}),
+        }),
       });
       const data = await res.json();
       setLinkedinPosts(data.posts as LinkedInPost[]);
@@ -965,7 +974,28 @@ function Dashboard({ blueprint }: { blueprint: Blueprint }) {
         >
           {blueprint.positioningStatement}
         </div>
-        <span style={S.goldTag}>Dashboard</span>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <span style={S.goldTag}>Dashboard</span>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.replace("/auth");
+            }}
+            style={{
+              backgroundColor: "transparent",
+              border: "1px solid #1e1e26",
+              borderRadius: "4px",
+              padding: "4px 12px",
+              color: "#6b6560",
+              fontSize: "11px",
+              fontFamily: "var(--font-body)",
+              cursor: "pointer",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -1258,6 +1288,15 @@ function Dashboard({ blueprint }: { blueprint: Blueprint }) {
 export default function BrandOS() {
   const [page, setPage] = useState<Page>("landing");
   const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   function handleBlueprintComplete(bp: Blueprint) {
     setBlueprint(bp);
@@ -1268,7 +1307,7 @@ export default function BrandOS() {
     <>
       {page === "landing" && <Landing onStart={() => setPage("onboarding")} />}
       {page === "onboarding" && (
-        <Onboarding onComplete={handleBlueprintComplete} />
+        <Onboarding onComplete={handleBlueprintComplete} userId={user?.id ?? null} />
       )}
       {page === "blueprint" && blueprint && (
         <BrandBlueprint
@@ -1277,7 +1316,7 @@ export default function BrandOS() {
         />
       )}
       {page === "dashboard" && blueprint && (
-        <Dashboard blueprint={blueprint} />
+        <Dashboard blueprint={blueprint} userId={user?.id ?? null} />
       )}
     </>
   );
