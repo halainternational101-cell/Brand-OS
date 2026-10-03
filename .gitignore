@@ -33,3 +33,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# video-edit working files (renders and raw clips stay local)
+renders/
+clips/
