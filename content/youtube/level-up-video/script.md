@@ -23,7 +23,7 @@ Stay with me for the next five minutes. I'm going to show you what changed, and 
 
 ## 2. Who I am (0:20 to 0:50)
 
-Assalamu alaikum, and welcome to Muslimah in Business. I'm [your name].
+Assalamu alaikum, and welcome to Muslimah in Business. I'm Hodan.
 
 For years I worked as a healthcare scientist. I loved the science. I was proud of that job, and my family was proud of that job.
 

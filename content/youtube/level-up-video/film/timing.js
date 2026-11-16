@@ -2,7 +2,7 @@
 // These are guesses from the script at a relaxed speaking pace. When the voice recording arrives, only this file
 // changes: each scene's length, and each beat (seconds from the start of its scene) is moved to the matching words.
 window.FILM_TIMING = {
-  name: 'Your Name',            // shown as "I'm ..." in scene 2
+  name: 'Hodan',            // shown as "I'm ..." in scene 2
   scenes: [
     { key: 'hook',   name: '1 Hook',                 dur: 20 },
     { key: 'me',     name: '2 Who I am',             dur: 30 },
